@@ -1,0 +1,5 @@
+# Blast Clust - Remove 30% Similarity
+
+
+
+# Blast convert FASTA to PSSM

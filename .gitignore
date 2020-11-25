@@ -1,0 +1,9 @@
+dataset/*
+fasta/*
+pssm_all
+pssm/*
+uniprot/*
+
+.DS_Store
+
+__pycache__

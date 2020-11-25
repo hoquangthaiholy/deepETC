@@ -1,0 +1,2 @@
+Namespace(batch_size=100, checkpoint_path='', fine_tuning=False, fine_tuning_layers=['fc2'], is_raw=False, keep_prob=0.7, learning_rate=0.001, log_dir='logs', log_interval=100, max_epoch=100, num_classes=2, num_feature=20, num_hidden=2000, num_windows=[256, 256, 256, 256, 256, 256, 256, 256], out_file='output.txt', prev_checkpoint_path='', regularizer=0.001, save_interval=100, seq_len=5127, test_file='dataset/pssm_test.txt', threshold=0.5, train_file='dataset/pssm_train.txt', window_lengths=[8, 12, 16, 20, 24, 28, 32, 36])
+2020-11-25 14:53:35.612696: Run epoch 0
