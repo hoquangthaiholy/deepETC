@@ -4,6 +4,7 @@
 "   Split data into train/test set
 """
 
+from sklearn.model_selection import train_test_split
 import os
 import re
 import pandas as pd
@@ -39,16 +40,19 @@ def uniprot_to_dataframe(file_path, clust_file=''):
         df.loc[n] = [fid, seq, len(seq), label]
     return df
 
+
 def dataframe_to_fasta(df, output_folder='fasta'):
     for i in range(len(df)):
-        fout = open(f"{output_folder}/{df.iloc[i,:].ID}.fasta",'w')
+        fout = open(f"{output_folder}/{df.iloc[i,:].ID}.fasta", 'w')
         fout.write(f"{df.iloc[i,:].SEQUENCE}")
     fout.close()
 
+
 def dataframe_to_fasta_all(df, output_file='fasta.txt'):
-    fout = open(output_file,'w')
+    fout = open(output_file, 'w')
     for i in range(len(df)):
-        fout.write(f">sp|{df.iloc[i,:].ID}|length={df.iloc[i,:].LENGTH}|label={df.iloc[i,:].LABEL}\n{df.iloc[i,:].SEQUENCE}\n")
+        fout.write(
+            f">sp|{df.iloc[i,:].ID}|length={df.iloc[i,:].LENGTH}|label={df.iloc[i,:].LABEL}\n{df.iloc[i,:].SEQUENCE}\n")
     fout.close()
 
 
@@ -56,8 +60,8 @@ df = uniprot_to_dataframe('uniprot/uniprot.txt', 'uniprot/uniprot.30.out')
 dataframe_to_fasta(df)
 
 # Split validation/test
-from sklearn.model_selection import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(df[['SEQUENCE']],df[['LABEL']], test_size=0.167, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(
+    df[['SEQUENCE']], df[['LABEL']], test_size=0.167, random_state=42)
 
 """""
 " Export train/test dataset for Deepfam
@@ -66,17 +70,19 @@ X_train, X_test, y_train, y_test = train_test_split(df[['SEQUENCE']],df[['LABEL'
 # Check max seqlength
 maxseq = 0
 for i in range(len(df)):
-    if len(df.iloc[i,:].SEQUENCE)>maxseq:
-        maxseq = len(df.iloc[i,:].SEQUENCE)
+    if len(df.iloc[i, :].SEQUENCE) > maxseq:
+        maxseq = len(df.iloc[i, :].SEQUENCE)
 
-ftrn = open('raw_train.txt','w')
+ftrn = open('raw_train.txt', 'w')
 for i in X_train.index:
-    ftrn.write(f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{df.iloc[i,:].SEQUENCE.ljust(maxseq,'_')}\n")
+    ftrn.write(
+        f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{df.iloc[i,:].SEQUENCE.ljust(maxseq,'_')}\n")
 ftrn.close()
 
-ftrn = open('raw_test.txt','w')
+ftrn = open('raw_test.txt', 'w')
 for i in X_test.index:
-    ftrn.write(f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{df.iloc[i,:].SEQUENCE.ljust(maxseq,'_')}\n")
+    ftrn.write(
+        f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{df.iloc[i,:].SEQUENCE.ljust(maxseq,'_')}\n")
 ftrn.close()
 
 
@@ -84,8 +90,33 @@ ftrn.close()
 " Export PSSM
 "
 """
+CHARSET = {'A': 0, 'C': 1, 'D': 2, 'E': 3, 'F': 4, 'G': 5, 'H': 6,
+           'I': 7, 'K': 8, 'L': 9, 'M': 10, 'N': 11, 'P': 12, 'Q': 13,
+           'R': 14, 'S': 15, 'T': 16, 'V': 17, 'W': 18, 'Y': 19, 'X': 20,
+            'O': 20, 'U': 20,
+            'B': (2, 11),
+            'Z': (3, 13),
+            'J': (7, 9)}
+CHARLEN = 21
 
-ftrn = open('pssm_train.txt','w')
+
+def encoding_seq_np(seq):
+    arr = [0] * CHARLEN
+    for i, c in enumerate(seq):
+        if c == "_":
+            # let them zero
+            continue
+        elif isinstance(CHARSET[c], int):
+            idx = CHARLEN * i + CHARSET[c]
+            arr[idx] = 1
+        else:
+            idx1 = CHARLEN * i + CHARSET[c][0]
+            idx2 = CHARLEN * i + CHARSET[c][1]
+            arr[idx1] = 0.5
+            arr[idx2] = 0.5
+        return arr
+
+ftrn = open('pssm_train.txt', 'w')
 m = 0
 for i in X_train.index:
     m += 1
@@ -96,11 +127,12 @@ for i in X_train.index:
     for line in pssm:
         j += 1
         arr.extend([float(k) for k in line.split()[2:22]])
-    for c in range(j,maxseq):
+    for c in range(j, maxseq):
         arr.extend([0]*20)
-    ftrn.write(f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")
+    ftrn.write(
+        f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")
 
-ftrn = open('pssm_test.txt','w')
+ftrn = open('pssm_test.txt', 'w')
 m = 0
 for i in X_test.index:
     m += 1
@@ -111,16 +143,17 @@ for i in X_test.index:
     for line in pssm:
         j += 1
         arr.extend([float(k) for k in line.split()[2:22]])
-    for c in range(j,maxseq):
+    for c in range(j, maxseq):
         arr.extend([0]*20)
-    ftrn.write(f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")
+    ftrn.write(
+        f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")
 
 """""
 " Export PSFM
 "
 """
 
-ftrn = open('psfm_train.txt','w')
+ftrn = open('psfm_train.txt', 'w')
 m = 0
 for i in X_train.index:
     m += 1
@@ -131,11 +164,12 @@ for i in X_train.index:
     for line in pssm:
         j += 1
         arr.extend([float(k) for k in line.split()[22:42]])
-    for c in range(j,maxseq):
+    for c in range(j, maxseq):
         arr.extend([0]*20)
-    ftrn.write(f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")
+    ftrn.write(
+        f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")
 
-ftrn = open('psfm_test.txt','w')
+ftrn = open('psfm_test.txt', 'w')
 m = 0
 for i in X_test.index:
     m += 1
@@ -146,9 +180,10 @@ for i in X_test.index:
     for line in pssm:
         j += 1
         arr.extend([float(k) for k in line.split()[22:42]])
-    for c in range(j,maxseq):
+    for c in range(j, maxseq):
         arr.extend([0]*20)
-    ftrn.write(f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")
+    ftrn.write(
+        f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")
 
 
 """""
@@ -156,7 +191,7 @@ for i in X_test.index:
 "
 """
 
-ftrn = open('pssm_psfm_train.txt','w')
+ftrn = open('pssm_psfm_train.txt', 'w')
 m = 0
 for i in X_train.index:
     m += 1
@@ -167,11 +202,12 @@ for i in X_train.index:
     for line in pssm:
         j += 1
         arr.extend([float(k) for k in line.split()[2:42]])
-    for c in range(j,maxseq):
+    for c in range(j, maxseq):
         arr.extend([0]*40)
-    ftrn.write(f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")
+    ftrn.write(
+        f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")
 
-ftrn = open('pssm_psfm_test.txt','w')
+ftrn = open('pssm_psfm_test.txt', 'w')
 m = 0
 for i in X_test.index:
     m += 1
@@ -182,6 +218,7 @@ for i in X_test.index:
     for line in pssm:
         j += 1
         arr.extend([float(k) for k in line.split()[2:42]])
-    for c in range(j,maxseq):
+    for c in range(j, maxseq):
         arr.extend([0]*40)
-    ftrn.write(f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")
+    ftrn.write(
+        f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")

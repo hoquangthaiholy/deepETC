@@ -1,0 +1,14 @@
+{
+	'conv': 
+		[
+			<tf.Tensor 'v1/conv0/Relu:0' shape=(?, 1, 5116, 256) dtype=float32>
+		], 
+	'hidden1': 
+		[
+			<tf.Tensor 'v1/flatten0/flatten/Reshape:0' shape=(?, 256) dtype=float32>
+		], 
+	'concat': 
+		<tf.Tensor 'v1/concat/concat:0' shape=(?, 256) dtype=float32>, 
+	'hidden2': <tf.Tensor 'v1/fc1/Relu:0' shape=(?, 2000) dtype=float32>, 
+	'pred': <tf.Tensor 'v1/fc2/BiasAdd:0' shape=(?, 2) dtype=float32>
+}

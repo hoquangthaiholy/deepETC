@@ -1,0 +1,29 @@
+{	
+	'conv': 
+		[
+			<tf.Tensor 'v1/conv0/Relu:0' shape=(?, 1, 5120, 256) dtype=float32>, 
+			<tf.Tensor 'v1/conv1/Relu:0' shape=(?, 1, 5116, 256) dtype=float32>, 
+			<tf.Tensor 'v1/conv2/Relu:0' shape=(?, 1, 5112, 256) dtype=float32>, 
+			<tf.Tensor 'v1/conv3/Relu:0' shape=(?, 1, 5108, 256) dtype=float32>, 
+			<tf.Tensor 'v1/conv4/Relu:0' shape=(?, 1, 5104, 256) dtype=float32>, 
+			<tf.Tensor 'v1/conv5/Relu:0' shape=(?, 1, 5100, 256) dtype=float32>, 
+			<tf.Tensor 'v1/conv6/Relu:0' shape=(?, 1, 5096, 256) dtype=float32>, 
+			<tf.Tensor 'v1/conv7/Relu:0' shape=(?, 1, 5092, 256) dtype=float32>
+		], 
+	'hidden1': 
+		[
+			<tf.Tensor 'v1/flatten0/flatten/Reshape:0' shape=(?, 256) dtype=float32>,
+			<tf.Tensor 'v1/flatten1/flatten/Reshape:0' shape=(?, 256) dtype=float32>,
+			<tf.Tensor 'v1/flatten2/flatten/Reshape:0' shape=(?, 256) dtype=float32>,
+			<tf.Tensor 'v1/flatten3/flatten/Reshape:0' shape=(?, 256) dtype=float32>,
+			<tf.Tensor 'v1/flatten4/flatten/Reshape:0' shape=(?, 256) dtype=float32>,
+			<tf.Tensor 'v1/flatten5/flatten/Reshape:0' shape=(?, 256) dtype=float32>,
+			<tf.Tensor 'v1/flatten6/flatten/Reshape:0' shape=(?, 256) dtype=float32>,
+			<tf.Tensor 'v1/flatten7/flatten/Reshape:0' shape=(?, 256) dtype=float32>
+		],
+	'concat': 
+		<tf.Tensor 'v1/concat:0' shape=(?, 2048) dtype=float32>, 
+	'hidden2': 
+		<tf.Tensor 'v1/fc1/Relu:0' shape=(?, 2000) dtype=float32>, 
+	'pred': <tf.Tensor 'v1/fc2/BiasAdd:0' shape=(?, 2) dtype=float32>
+}
