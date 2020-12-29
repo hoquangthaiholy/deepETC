@@ -17,7 +17,7 @@ def uniprot_to_dataframe(file_path, clust_file=''):
         for line in fin:
             inc_list.append(line.split(' ')[0])
     n = -1
-    df = pd.DataFrame(columns=['ID', 'SEQUENCE', 'LENGTH', 'LABEL'])
+    df = pd.DataFrame(columns=['ID', 'SEQUENCE', 'LENGTH', 'COMPLEX' , 'LABEL'])
     all_data = re.split(
         r'^\/\/', ''.join(open(file_path).readlines()), flags=re.M)
     for data in all_data[:-1]:
@@ -31,13 +31,34 @@ def uniprot_to_dataframe(file_path, clust_file=''):
         matches = re.split(r'(^SQ   .*)', data, flags=re.M)
         seq = ''.join(matches[2].split())
 
+        matches = re.findall(r'^DR   GO; GO:(\S*);', data, flags=re.M)
+        comp = ''
+
+        for match in matches:
+            if match in ['0016651','0016655','0003954','0050136','0008137']:
+                comp = 'I'
+                break
+            if match in ['0000104','0008177']:
+                comp = 'II'
+                break
+            if match in ['0008121','0045153']:
+                comp = 'III'
+                break
+            if match in ['0004129']:
+                comp = 'IV'
+                break
+            if match in ['0046961']:
+                comp = 'V'
+                break
+
         matches = re.findall(r'^KW   (.*)', data, flags=re.M)
         label = 'TP'
+
         for match in matches:
             if match.find('Electron transport') != -1:
                 label = 'ET'
                 break
-        df.loc[n] = [fid, seq, len(seq), label]
+        df.loc[n] = [fid, seq, len(seq), comp, label]
     return df
 
 
@@ -58,6 +79,12 @@ def dataframe_to_fasta_all(df, output_file='fasta.txt'):
 
 df = uniprot_to_dataframe('uniprot/uniprot.txt', 'uniprot/uniprot.30.out')
 # dataframe_to_fasta(df)
+
+# Check max seqlength
+maxseq = 0
+for i in range(len(df)):
+    if len(df.iloc[i, :].SEQUENCE) > maxseq:
+        maxseq = len(df.iloc[i, :].SEQUENCE)
 
 # Split validation/test
 X_train, X_test, y_train, y_test = train_test_split(
@@ -93,12 +120,6 @@ def encoding_seq_np(seq):
             arr[idx2] = 0.5
         return arr
 
-
-# Check max seqlength
-maxseq = 0
-for i in range(len(df)):
-    if len(df.iloc[i, :].SEQUENCE) > maxseq:
-        maxseq = len(df.iloc[i, :].SEQUENCE)
 
 ftrn = open('bin_train.txt', 'w')
 for i in X_train.index:
@@ -301,3 +322,57 @@ for i in X_test.index:
         _arr.extend(arr[j])
     ftrn.write(
         f"{1 if df.iloc[i,:].LABEL=='ET' else 0},{','.join(str(x) for x in _arr)}\n")
+
+#####
+#
+#  Complexes
+#
+#######
+# df_comp = df.loc[(df.COMPLEX!='') & (df.LABEL=='ET')]
+df_comp = df.loc[(df.COMPLEX!='')]
+df_comp = df_comp.reset_index()
+
+# Factorize labels
+df_comp.COMPLEX = pd.factorize(df_comp.COMPLEX)[0]
+
+# Split validation/test
+X_train, X_test, y_train, y_test = train_test_split(
+    df_comp[['SEQUENCE']], df_comp[['COMPLEX']], test_size=0.33, random_state=42)
+
+
+"""""
+" Export PSSM
+"
+"""
+
+ftrn = open('pssm_comp_train.txt', 'w')
+m = 0
+for i in X_train.index:
+    m += 1
+    pssm = open(f"pssm_all/{df_comp.iloc[i,:].ID}.pssm").readlines()[3:-6]
+    print(f"\r{m}/{len(X_train)}", end='')
+    arr = []
+    j = 0
+    for line in pssm:
+        j += 1
+        arr.extend([float(k) for k in line.split()[2:22]])
+    for c in range(j, maxseq):
+        arr.extend([0]*20)
+    ftrn.write(
+        f"{df_comp.iloc[i,:].COMPLEX},{','.join(str(x) for x in arr)}\n")
+
+ftrn = open('pssm_comp_test.txt', 'w')
+m = 0
+for i in X_test.index:
+    m += 1
+    pssm = open(f"pssm_all/{df_comp.iloc[i,:].ID}.pssm").readlines()[3:-6]
+    print(f"\r{m}/{len(X_test)}", end='')
+    arr = []
+    j = 0
+    for line in pssm:
+        j += 1
+        arr.extend([float(k) for k in line.split()[2:22]])
+    for c in range(j, maxseq):
+        arr.extend([0]*20)
+    ftrn.write(
+        f"{df_comp.iloc[i,:].COMPLEX},{','.join(str(x) for x in arr)}\n")
