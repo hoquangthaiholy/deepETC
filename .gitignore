@@ -4,6 +4,6 @@ pssm_all
 pssm/*
 uniprot/*
 
-.DS_Store
+*.DS_Store
 
 __pycache__

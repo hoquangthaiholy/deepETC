@@ -58,6 +58,11 @@ def uniprot_to_dataframe(file_path, clust_file=''):
             if match.find('Electron transport') != -1:
                 label = 'ET'
                 break
+        
+        # If a protein belongs to 5 complexes, it will be ET
+        if comp != '':
+            label = 'ET'
+
         df.loc[n] = [fid, seq, len(seq), comp, label]
     return df
 
@@ -76,7 +81,7 @@ def dataframe_to_fasta_all(df, output_file='fasta.txt'):
             f">sp|{df.iloc[i,:].ID}|length={df.iloc[i,:].LENGTH}|label={df.iloc[i,:].LABEL}\n{df.iloc[i,:].SEQUENCE}\n")
     fout.close()
 
-
+# df = uniprot_to_dataframe('uniprot/u niprot.txt')
 df = uniprot_to_dataframe('uniprot/uniprot.txt', 'uniprot/uniprot.30.out')
 # dataframe_to_fasta(df)
 
@@ -89,6 +94,11 @@ for i in range(len(df)):
 # Split validation/test
 X_train, X_test, y_train, y_test = train_test_split(
     df[['SEQUENCE']], df[['LABEL']], test_size=0.167, random_state=42)
+
+from collections import Counter
+print(Counter(df.LABEL))
+print(Counter(y_train.LABEL))
+print(Counter(y_test.LABEL))
 
 """""
 " Export train/test dataset for Deepfam
@@ -152,7 +162,7 @@ ftrn.close()
 "
 """
 
-ftrn = open('pssm_train2.txt', 'w')
+ftrn = open('pssm_train.txt', 'w')
 m = 0
 for i in X_train.index:
     m += 1
@@ -168,7 +178,7 @@ for i in X_train.index:
     ftrn.write(
         f"{1 if df.iloc[i,:].LABEL=='ET' else 0},{','.join(str(x) for x in arr)}\n")
 
-ftrn = open('pssm_test2.txt', 'w')
+ftrn = open('pssm_test.txt', 'w')
 m = 0
 for i in X_test.index:
     m += 1
@@ -189,7 +199,7 @@ for i in X_test.index:
 "
 """
 
-ftrn = open('psfm_train2.txt', 'w')
+ftrn = open('psfm_train.txt', 'w')
 m = 0
 for i in X_train.index:
     m += 1
@@ -205,7 +215,7 @@ for i in X_train.index:
     ftrn.write(
         f"{1 if df.iloc[i,:].LABEL=='ET' else 0},{','.join(str(x) for x in arr)}\n")
 
-ftrn = open('psfm_test2.txt', 'w')
+ftrn = open('psfm_test.txt', 'w')
 m = 0
 for i in X_test.index:
     m += 1
@@ -328,28 +338,34 @@ for i in X_test.index:
 #  Complexes
 #
 #######
-# df_comp = df.loc[(df.COMPLEX!='') & (df.LABEL=='ET')]
-df_comp = df.loc[(df.COMPLEX!='')]
-df_comp = df_comp.reset_index()
+df_et = df.loc[(df.LABEL=='ET') & (df.COMPLEX!='')]
+# df_comp = df_et.loc[df_et.COMPLEX!='']
+# df_comp = df.loc[(df.COMPLEX!='')]
+df_et = df_et.reset_index(drop=True)
 
 # Factorize labels
-df_comp.COMPLEX = pd.factorize(df_comp.COMPLEX)[0]
+df_et.COMPLEX = df_et.COMPLEX.map({ 'I': 0, 'II': 1, 'III': 2, 'IV': 3, 'V': 4 })
 
 # Split validation/test
 X_train, X_test, y_train, y_test = train_test_split(
-    df_comp[['SEQUENCE']], df_comp[['COMPLEX']], test_size=0.33, random_state=42)
+    df_et[['SEQUENCE']], df_et[['COMPLEX']], test_size=0.25, random_state=42, stratify=df_et[['COMPLEX']])
 
+
+from collections import Counter
+print(Counter(df_et.COMPLEX))
+print(Counter(y_train.COMPLEX))
+print(Counter(y_test.COMPLEX))
 
 """""
 " Export PSSM
 "
 """
 
-ftrn = open('pssm_comp_train.txt', 'w')
+ftrn = open('pssm_comp_train.csv', 'w')
 m = 0
 for i in X_train.index:
     m += 1
-    pssm = open(f"pssm_all/{df_comp.iloc[i,:].ID}.pssm").readlines()[3:-6]
+    pssm = open(f"pssm_all/{df_et.iloc[i,:].ID}.pssm").readlines()[3:-6]
     print(f"\r{m}/{len(X_train)}", end='')
     arr = []
     j = 0
@@ -359,13 +375,13 @@ for i in X_train.index:
     for c in range(j, maxseq):
         arr.extend([0]*20)
     ftrn.write(
-        f"{df_comp.iloc[i,:].COMPLEX},{','.join(str(x) for x in arr)}\n")
+        f"{df_et.iloc[i,:].COMPLEX},{','.join(str(x) for x in arr)}\n")
 
-ftrn = open('pssm_comp_test.txt', 'w')
+ftrn = open('pssm_comp_test.csv', 'w')
 m = 0
 for i in X_test.index:
     m += 1
-    pssm = open(f"pssm_all/{df_comp.iloc[i,:].ID}.pssm").readlines()[3:-6]
+    pssm = open(f"pssm_all/{df_et.iloc[i,:].ID}.pssm").readlines()[3:-6]
     print(f"\r{m}/{len(X_test)}", end='')
     arr = []
     j = 0
@@ -375,4 +391,4 @@ for i in X_test.index:
     for c in range(j, maxseq):
         arr.extend([0]*20)
     ftrn.write(
-        f"{df_comp.iloc[i,:].COMPLEX},{','.join(str(x) for x in arr)}\n")
+        f"{df_et.iloc[i,:].COMPLEX},{','.join(str(x) for x in arr)}\n")
