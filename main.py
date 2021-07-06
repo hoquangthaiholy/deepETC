@@ -57,22 +57,35 @@ def dataframe_to_fasta_all(df, output_file='fasta.txt'):
 
 
 df = uniprot_to_dataframe('uniprot/uniprot.txt', 'uniprot/uniprot.30.out')
+
+# Export fasta files
 dataframe_to_fasta(df)
 
 # Split validation/test
 X_train, X_test, y_train, y_test = train_test_split(
     df[['SEQUENCE']], df[['LABEL']], test_size=0.167, random_state=42)
 
-"""""
-" Export train/test dataset for Deepfam
-"
-"""
+
+# Split Cross-Validation
+from sklearn.model_selection import KFold
+kf = KFold(n_splits=5) # Define the split - into 2 folds 
+kf.get_n_splits(X_train) # returns the number of splitting iterations in the cross-validator
+
+print(kf)
+CV = []
+for train_index, test_index in kf.split(X_train):
+    CV.append({ 'train': train_index, 'test': test_index })
+
 # Check max seqlength
 maxseq = 0
 for i in range(len(df)):
     if len(df.iloc[i, :].SEQUENCE) > maxseq:
         maxseq = len(df.iloc[i, :].SEQUENCE)
 
+"""""
+" Export train/test dataset for Deepfam
+"
+"""
 ftrn = open('raw_train.txt', 'w')
 for i in X_train.index:
     ftrn.write(
@@ -85,9 +98,8 @@ for i in X_test.index:
         f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{df.iloc[i,:].SEQUENCE.ljust(maxseq,'_')}\n")
 ftrn.close()
 
-
 """""
-" Export PSSM
+" Export Binary
 "
 """
 CHARSET = {'A': 0, 'C': 1, 'D': 2, 'E': 3, 'F': 4, 'G': 5, 'H': 6,
@@ -116,109 +128,143 @@ def encoding_seq_np(seq):
             arr[idx2] = 0.5
         return arr
 
-ftrn = open('pssm_train.txt', 'w')
-m = 0
-for i in X_train.index:
-    m += 1
-    pssm = open(f"pssm_all/{df.iloc[i,:].ID}.pssm").readlines()[3:-6]
-    print(f"\r{m}/{len(X_train)}", end='')
-    arr = []
-    j = 0
-    for line in pssm:
-        j += 1
-        arr.extend([float(k) for k in line.split()[2:22]])
-    for c in range(j, maxseq):
-        arr.extend([0]*20)
-    ftrn.write(
-        f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")
+def export_binary(train_index, test_index, train_out = 'bin_train.csv', test_out = 'bin_test.csv'):
+    ftrn = open(train_out, 'w')
+    for i in train_index:
+        arr = []
+        arr.append(1 if df.iloc[i, :].LABEL == 'ET' else 0)
+        seq = list(df.iloc[i, :].SEQUENCE)
+        for j in range(maxseq):
+            if j < len(seq):
+                arr.extend(encoding_seq_np(seq[j]))
+            else:
+                arr.extend([0]*CHARLEN)
+        ftrn.write(f"{','.join([ str(k) for k in arr])}\n")
+    ftrn.close()
 
-ftrn = open('pssm_test.txt', 'w')
-m = 0
-for i in X_test.index:
-    m += 1
-    pssm = open(f"pssm_all/{df.iloc[i,:].ID}.pssm").readlines()[3:-6]
-    print(f"\r{m}/{len(X_test)}", end='')
-    arr = []
-    j = 0
-    for line in pssm:
-        j += 1
-        arr.extend([float(k) for k in line.split()[2:22]])
-    for c in range(j, maxseq):
-        arr.extend([0]*20)
-    ftrn.write(
-        f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")
+    ftrn = open(test_out, 'w')
+    for i in test_index:
+        arr = []
+        arr.append(1 if df.iloc[i, :].LABEL == 'ET' else 0)
+        seq = list(df.iloc[i, :].SEQUENCE)
+        for j in range(maxseq):
+            if j < len(seq):
+                arr.extend(encoding_seq_np(seq[j]))
+            else:
+                arr.extend([0]*CHARLEN)
+        ftrn.write(f"{','.join([ str(k) for k in arr])}\n")
+    ftrn.close()
 
-"""""
-" Export PSFM
-"
-"""
-
-ftrn = open('psfm_train.txt', 'w')
-m = 0
-for i in X_train.index:
-    m += 1
-    pssm = open(f"pssm_all/{df.iloc[i,:].ID}.pssm").readlines()[3:-6]
-    print(f"\r{m}/{len(X_train)}", end='')
-    arr = []
-    j = 0
-    for line in pssm:
-        j += 1
-        arr.extend([float(k) for k in line.split()[22:42]])
-    for c in range(j, maxseq):
-        arr.extend([0]*20)
-    ftrn.write(
-        f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")
-
-ftrn = open('psfm_test.txt', 'w')
-m = 0
-for i in X_test.index:
-    m += 1
-    pssm = open(f"pssm_all/{df.iloc[i,:].ID}.pssm").readlines()[3:-6]
-    print(f"\r{m}/{len(X_test)}", end='')
-    arr = []
-    j = 0
-    for line in pssm:
-        j += 1
-        arr.extend([float(k) for k in line.split()[22:42]])
-    for c in range(j, maxseq):
-        arr.extend([0]*20)
-    ftrn.write(
-        f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")
-
+export_binary(X_train.index,X_test.index)
+for i in range(len(CV)):
+    export_binary(CV[i]['train'],CV[i]['test'],f"bin_train_cv{i+1}.csv",f"bin_test_cv{i+1}.csv")
 
 """""
-" Export PSSM + PSFM
+" Export PSSM
 "
 """
+def export_pssm(train_index, test_index, train_out = 'pssm_train.csv', test_out = 'pssm_test.csv'):
+    ftrn = open(train_out, 'w')
+    m = 0
+    for i in train_index:
+        m += 1
+        pssm = open(f"pssm/{df.iloc[i,:].ID}.pssm").readlines()[3:-6]
+        print(f"\r{m}/{len(train_index)}", end='')
+        arr = []
+        j = 0
+        for line in pssm:
+            j += 1
+            arr.extend([float(k) for k in line.split()[2:22]])
+        for c in range(j, maxseq):
+            arr.extend([0]*20)
+        ftrn.write(
+            f"{1 if df.iloc[i,:].LABEL=='ET' else 0},{','.join(str(x) for x in arr)}\n")
 
-ftrn = open('pssm_psfm_train.txt', 'w')
-m = 0
-for i in X_train.index:
-    m += 1
-    pssm = open(f"pssm_all/{df.iloc[i,:].ID}.pssm").readlines()[3:-6]
-    print(f"\r{m}/{len(X_train)}", end='')
-    arr = []
-    j = 0
-    for line in pssm:
-        j += 1
-        arr.extend([float(k) for k in line.split()[2:42]])
-    for c in range(j, maxseq):
-        arr.extend([0]*40)
-    ftrn.write(
-        f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")
+    ftrn = open(test_out, 'w')
+    m = 0
+    for i in test_index:
+        m += 1
+        pssm = open(f"pssm/{df.iloc[i,:].ID}.pssm").readlines()[3:-6]
+        print(f"\r{m}/{len(test_index)}", end='')
+        arr = []
+        j = 0
+        for line in pssm:
+            j += 1
+            arr.extend([float(k) for k in line.split()[2:22]])
+        for c in range(j, maxseq):
+            arr.extend([0]*20)
+        ftrn.write(
+            f"{1 if df.iloc[i,:].LABEL=='ET' else 0},{','.join(str(x) for x in arr)}\n")
 
-ftrn = open('pssm_psfm_test.txt', 'w')
-m = 0
-for i in X_test.index:
-    m += 1
-    pssm = open(f"pssm_all/{df.iloc[i,:].ID}.pssm").readlines()[3:-6]
-    print(f"\r{m}/{len(X_test)}", end='')
-    arr = []
-    j = 0
-    for line in pssm:
-        j += 1
-        arr.extend([float(k) for k in line.split()[2:42]])
-    for c in range(j, maxseq):
-        arr.extend([0]*40)
-    ftrn.write(
-        f"{1 if df.iloc[i,:].LABEL=='ET' else 0}\t{','.join(str(x) for x in arr)}\n")
+export_pssm(X_train.index,X_test.index,"pssm_train.csv","pssm_test.csv")
+for i in range(len(CV)):
+    export_pssm(CV[i]['train'],CV[i]['test'],f"pssm_train_cv{i+1}.csv",f"pssm_test_cv{i+1}.csv")
+
+"""""
+" Export Sum PSSM
+"
+"""
+import math
+
+def export_sum(train_index, test_index, train_out = 'sum_train.csv', test_out = 'sum_test.csv'):
+    ftrn = open(train_out, 'w')
+    m = 0
+    for i in train_index:
+        m += 1
+        arr = {'A': [0]*20, 'R': [0]*20, 'N': [0]*20, 'D': [0]*20, 'C': [0]*20, 'Q': [0]*20, 'E': [0]*20, 'G': [0]*20, 'H': [0]*20, 'I': [0]
+        * 20, 'L': [0]*20, 'K': [0]*20, 'M': [0]*20, 'F': [0]*20, 'P': [0]*20, 'S': [0]*20, 'T': [0]*20, 'W': [0]*20, 'Y': [0]*20, 'V': [0]*20}
+        arr2 = {'A': 0, 'R': 0, 'N': 0, 'D': 0, 'C': 0, 'Q': 0, 'E': 0, 'G': 0, 'H': 0, 'I': 0
+            , 'L': 0, 'K': 0, 'M': 0, 'F': 0, 'P': 0, 'S': 0, 'T': 0, 'W': 0, 'Y': 0, 'V': 0}
+        pssm = open(f"pssm/{df.iloc[i,:].ID}.pssm").readlines()[3:-6]
+        print(f"\r{m}/{len(train_index)}", end='')
+        for line in pssm:
+            c = line.split()[1]
+            if c in ['X','U', 'O']:
+                continue
+            for k in range(20):
+                arr2[c] += 1
+                arr[c][k] += float(line.split()[k+2])
+        
+        for j in arr:
+            for k in range(20):
+                arr[j][k] /= len(pssm)
+                arr[j][k] = 1/(1 + math.exp(-arr[j][k]))
+        
+        _arr = []
+        for j in arr:
+            _arr.extend(arr[j])
+        ftrn.write(
+            f"{1 if df.iloc[i,:].LABEL=='ET' else 0},{','.join(str(x) for x in _arr)}\n")
+
+    ftrn = open(test_out, 'w')
+    m = 0
+    for i in test_index:
+        m += 1
+        arr = {'A': [0]*20, 'R': [0]*20, 'N': [0]*20, 'D': [0]*20, 'C': [0]*20, 'Q': [0]*20, 'E': [0]*20, 'G': [0]*20, 'H': [0]*20, 'I': [0]
+        * 20, 'L': [0]*20, 'K': [0]*20, 'M': [0]*20, 'F': [0]*20, 'P': [0]*20, 'S': [0]*20, 'T': [0]*20, 'W': [0]*20, 'Y': [0]*20, 'V': [0]*20}
+        arr2 = {'A': 0, 'R': 0, 'N': 0, 'D': 0, 'C': 0, 'Q': 0, 'E': 0, 'G': 0, 'H': 0, 'I': 0
+            , 'L': 0, 'K': 0, 'M': 0, 'F': 0, 'P': 0, 'S': 0, 'T': 0, 'W': 0, 'Y': 0, 'V': 0}
+        pssm = open(f"pssm/{df.iloc[i,:].ID}.pssm").readlines()[3:-6]
+        print(f"\r{m}/{len(test_index)}", end='')
+        for line in pssm:
+            c = line.split()[1]
+            if c in ['X','U', 'O']:
+                continue
+            for k in range(20):
+                arr2[c] += 1
+                arr[c][k] += float(line.split()[k+2])
+        
+        for j in arr:
+            for k in range(20):
+                arr[j][k] /= len(pssm)
+                arr[j][k] = 1/(1 + math.exp(-arr[j][k]))
+        
+        _arr = []
+        for j in arr:
+            _arr.extend(arr[j])
+        ftrn.write(
+            f"{1 if df.iloc[i,:].LABEL=='ET' else 0},{','.join(str(x) for x in _arr)}\n")
+
+export_sum(X_train.index,X_test.index,"sum_train.csv","sum_test.csv")
+for i in range(len(CV)):
+    export_sum(CV[i]['train'],CV[i]['test'],f"sum_train_cv{i+1}.csv",f"sum_test_cv{i+1}.csv")

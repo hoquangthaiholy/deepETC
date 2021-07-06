@@ -1,9 +1,10 @@
-dataset/*
-fasta/*
-pssm_all
-pssm/*
+dataset/*.csv
+dataset/*.zip
+fasta/*.fasta
+pssm/*.pssm
 uniprot/*
 
+# MacOS temp files
 *.DS_Store
 
 __pycache__
